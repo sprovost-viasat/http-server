@@ -7,6 +7,8 @@
 #include <memory.h>
 #include <errno.h>
 
+#include "interface.h"
+
 /*Server process is running on this port no. Client has to send data to this port no*/
 #define SERVER_PORT     2000
 
@@ -217,6 +219,8 @@ void setup_tcp_server_communication(){
         printf("listen failed\n");
         return;
     }
+    
+    print_available_interfaces(SERVER_PORT);
 
     /* Server infinite loop for servicing the client*/
 
