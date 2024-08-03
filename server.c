@@ -15,6 +15,16 @@
 
 char data_buffer[1024];
 
+// method and URL strings are passed by reference
+void process_request_line(char *request_line, char **method, char **URL)
+{
+    printf("processing request line: %s\n", request_line);
+    char del[1] = " ";
+    *method = strtok(request_line, del);     /*Tokenize the request line on the basis of space, and extract the first word*/
+    *URL = strtok(NULL, del);                /*Extract the URL*/
+    // printf("Method = %s\n", *method);
+    // printf("URL = %s\n", *URL);
+}
 
 /*string helping functions*/
 
@@ -280,29 +290,29 @@ void setup_tcp_server_communication(){
                         inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
 
                 if(sent_recv_bytes == 0){
-                /* If server recvs empty msg from client, server may close the connection and wait
-                 * for fresh new connection from client - same or different*/
-                close(comm_socket_fd);
-                break; /*goto step 5*/
+                    /* If server recvs empty msg from client, server may close the connection and wait
+                    * for fresh new connection from client - same or different*/
+                    close(comm_socket_fd);
+                    break; /*goto step 5*/
 
                 }
 
 
-
-
-                /****************************************************************/
+                 /****************************************************************/
                  /*BEGIN : Implement the HTTP request processing functionality */
                 /****************************************************************/
-                
-                printf("Msg recieved : %s\n", data_buffer);
+
+                printf("Msg recieved:\n%s\n", data_buffer);
                 char *request_line = NULL;
-                char del[2] = "\n", 
-                     *method = NULL,
-                     *URL = NULL;
-                request_line = strtok(data_buffer, del); /*Extract out the request line*/
-                del[0] = ' ';
-                method = strtok(request_line, del);     /*Tokenize the request line on the basis of space, and extract the first word*/
-                URL = strtok(NULL, del);                /*Extract the URL*/
+                char *method = NULL;
+                char *URL = NULL;
+
+                char del[2] = "\n";
+
+                request_line = strtok(data_buffer, del);
+
+                process_request_line(request_line, &method, &URL);
+
                 printf("Method = %s\n", method);
                 printf("URL = %s\n", URL);
                 char *response = NULL;
