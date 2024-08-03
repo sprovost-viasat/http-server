@@ -31,5 +31,4 @@ void print_available_interfaces(unsigned int port)
     }
 
     freeifaddrs(ifap);
-
 }
