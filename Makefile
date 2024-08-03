@@ -1,2 +1,2 @@
-server: server.c
-	gcc -g server.c -o server
+server: server.c interface.c
+	gcc -g server.c interface.c -o server
