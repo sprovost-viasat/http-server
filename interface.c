@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <arpa/inet.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -18,7 +19,6 @@ void print_available_interfaces(unsigned int port)
     for (ifa = ifap; ifa != NULL; ifa = ifa->ifa_next) {
         if (ifa->ifa_addr == NULL)
             continue;
-
         family = ifa->ifa_addr->sa_family;
         if (family == AF_INET)
         {
