@@ -17,49 +17,39 @@
 
 char data_buffer[1024];
 
-void setup_tcp_server_communication(){
+int setup_tcp_socket_connection(struct sockaddr_in *server_addr)
+{
 
     /*Step 1 : Initialization*/
     /*Socket handle and other variables*/
     /*Master socket file descriptor, used to accept new client connection only, no data exchange*/
-    int master_sock_tcp_fd = 0, 
-        sent_recv_bytes = 0, 
-        addr_len = 0, 
+    int master_socket_fd = 0, 
         opt = 1;
 
-    /*client specific communication socket file descriptor, 
-     * used for only data exchange/communication between client and server*/
-    int comm_socket_fd = 0;     
-    /* Set of file descriptor on which select() polls. Select() unblocks whever data arrives on 
-     * any fd present in this set*/
-    fd_set readfds;             
     /*variables to hold server information*/
-    struct sockaddr_in server_addr, /*structure to store the server and client info*/
-                       client_addr;
+    // struct sockaddr_in server_addr; /*structure to store the server and client info*/
 
     /*step 2: tcp master socket creation*/
-    if ((master_sock_tcp_fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP )) == -1)
+    if ((master_socket_fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP )) == -1)
     {
         printf("socket creation failed\n");
         exit(1);
     }
     
     //set master socket to allow multiple connections
-    if (setsockopt(master_sock_tcp_fd, SOL_SOCKET, SO_REUSEADDR, (char *)&opt, sizeof(opt))<0){
+    if (setsockopt(master_socket_fd, SOL_SOCKET, SO_REUSEADDR, (char *)&opt, sizeof(opt))<0){
         printf("TCP socket creation failed for multiple connections\n");
         exit(EXIT_FAILURE);
     }
 
     /*Step 3: specify server Information*/
-    server_addr.sin_family = AF_INET;/*This socket will process only ipv4 network packets*/
-    server_addr.sin_port = htons(SERVER_PORT);/*Server will process any data arriving on port no 2000*/
+    server_addr->sin_family = AF_INET;/*This socket will process only ipv4 network packets*/
+    server_addr->sin_port = htons(SERVER_PORT);/*Server will process any data arriving on port no 2000*/
     
     /*3232249957; //( = 192.168.56.101); Server's IP address, 
     //means, Linux will send all data whose destination address = address of any local interface 
     //of this machine, in this case it is 192.168.56.101*/
-    server_addr.sin_addr.s_addr = INADDR_ANY; 
-
-    addr_len = sizeof(struct sockaddr);
+    server_addr->sin_addr.s_addr = INADDR_ANY; 
 
     /* Bind the server. Binding means, we are telling kernel(OS) that any data 
      * you recieve with dest ip address = 192.168.56.101, and tcp port no = 2000, pls send that data to this process
@@ -67,20 +57,36 @@ void setup_tcp_server_communication(){
      * can run multiple server processes to process different data and service different clients. Note that, bind() is 
      * used on server side, not on client side*/
 
-    if (bind(master_sock_tcp_fd, (struct sockaddr *)&server_addr, sizeof(struct sockaddr)) == -1)
+    if (bind(master_socket_fd, (struct sockaddr *)server_addr, sizeof(struct sockaddr)) == -1)
     {
         printf("socket bind failed\n");
-        return;
+        return -1;
     }
 
     /*Step 4 : Tell the Linux OS to maintain the queue of max length to Queue incoming
      * client connections.*/
-    if (listen(master_sock_tcp_fd, 5)<0)  
+    if (listen(master_socket_fd, 5)<0)  
     {
         printf("listen failed\n");
-        return;
+        return -1;
     }
-    
+
+    return master_socket_fd;  
+}
+
+
+void service_client(const int master_socket_fd)
+{
+    /*client specific communication socket file descriptor, 
+     * used for only data exchange/communication between client and server*/
+    int comm_socket_fd = 0;   
+    struct sockaddr_in client_addr; /*structure to store the server and client info*/
+
+    int sent_recv_bytes = 0;
+    int addr_len = sizeof(struct sockaddr);
+
+    fd_set readfds;
+
     print_available_interfaces(SERVER_PORT);
 
     /* Server infinite loop for servicing the client*/
@@ -89,7 +95,7 @@ void setup_tcp_server_communication(){
 
         /*Step 5 : initialze and dill readfds*/
         FD_ZERO(&readfds);                     /* Initialize the file descriptor set*/
-        FD_SET(master_sock_tcp_fd, &readfds);  /*Add the socket to this set on which our server is running*/
+        FD_SET(master_socket_fd, &readfds);  /*Add the socket to this set on which our server is running*/
 
         printf("blocked on select System call...\n");
 
@@ -98,10 +104,10 @@ void setup_tcp_server_communication(){
         /*state Machine state 1 */
         
         /*Call the select system call, server process blocks here. Linux OS keeps this process blocked untill the data arrives on any of the file Drscriptors in the 'readfds' set*/
-        select(master_sock_tcp_fd + 1, &readfds, NULL, NULL, NULL); 
+        select(master_socket_fd + 1, &readfds, NULL, NULL, NULL); 
 
         /*Some data on some fd present in set has arrived, Now check on which File descriptor the data arrives, and process accordingly*/
-        if (FD_ISSET(master_sock_tcp_fd, &readfds))
+        if (FD_ISSET(master_socket_fd, &readfds))
         { 
             /*Data arrives on Master socket only when new client connects with the server (that is, 'connect' call is invoked on client side)*/
             printf("New connection recieved recvd, accept the connection. Client and Server completes TCP-3 way handshake at this point\n");
@@ -110,7 +116,7 @@ void setup_tcp_server_communication(){
              * life of connection with this client to send and recieve msg. Master socket is used only for accepting
              * new client's connection and not for data exchange with the client*/
             /* state Machine state 2*/
-            comm_socket_fd = accept(master_sock_tcp_fd, (struct sockaddr *)&client_addr, &addr_len);
+            comm_socket_fd = accept(master_socket_fd, (struct sockaddr *)&client_addr, &addr_len);
             if(comm_socket_fd < 0){
                 /* if accept failed to return a socket descriptor, display error and exit */
                 printf("accept error : errno = %d\n", errno);
@@ -203,8 +209,23 @@ void setup_tcp_server_communication(){
     }/*step 10 : wait for new client request again*/    
 }
 
-int main(int argc, char **argv){
+int main(int argc, char **argv)
+{
+    /* Set of file descriptor on which select() polls. Select() unblocks whever data arrives on 
+     * any fd present in this set*/
+     fd_set readfds;             
+    /*variables to hold server information*/
+    struct sockaddr_in server_addr; /*structure to store the server and client info*/
 
-    setup_tcp_server_communication();
+    int master_socket_fd = setup_tcp_socket_connection(&server_addr);
+
+    if (master_socket_fd < 0)
+    {
+        return 1;
+    }
+
+
+
+    service_client(master_socket_fd);
     return 0;
 }
