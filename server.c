@@ -3,6 +3,7 @@
 #include <sys/socket.h>
 #include <sys/select.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 #include <netdb.h>
 #include <memory.h>
 #include <errno.h>
@@ -256,8 +257,18 @@ void setup_tcp_server_communication(){
                 exit(0);
             }
 
-            printf("Connection accepted from client : %s:%u\n", 
-                inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
+            printf("accepted\n");
+            printf("Connection accepted from client :%u\n", 
+                ntohs(client_addr.sin_port));
+
+
+            // Extract the sin_addr structure from client_addr
+            struct in_addr ip_addr = client_addr.sin_addr;
+            
+
+            printf("Connection accepted from client : %s\n",  inet_ntoa(ip_addr));
+
+            
 
             while(1){
                 printf("Server ready to service client msgs.\n");
