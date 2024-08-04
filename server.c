@@ -78,25 +78,6 @@ inote_t notes[3] = {
 };
 
 
-unsigned int convert_char_to_uint(const char* str) {
-    char* endptr;
-    unsigned long value = strtoul(str, &endptr, 10); // Base 10 for decimal
-
-    // Check for conversion errors
-    if (*endptr != '\0') {
-        // Handle error: invalid character found
-        return 0; // Or handle the error differently
-    }
-
-    // Ensure the value fits in an unsigned int
-    if (value > UINT_MAX) {
-        // Handle overflow: value too large
-        return UINT_MAX; // Or handle the error differently
-    }
-
-    return (unsigned int)value;
-}
-
 // remove all chars up to and includeing the ?
 // if cannot find ? then remove nothing
 char* only_query_params(char *query_string)
@@ -147,20 +128,6 @@ void parse_query_string(const char *query_string, unsigned int *id, char **to, c
         }
 
     };
-
-    // while ((token = strtok(NULL, delimeters)) != NULL) {
-    //     key = strtok(token, "=");
-    //     value = strtok(NULL, "=");
-
-    //     printf("parsed %s:%s\n", key, value);
-
-    //     if (strcmp(key, "id") == 0) {
-    //         printf("Captured string id val: %s\n", value);
-    //         *id = atoi(value);
-    //     } else if (strcmp(key, "to") == 0) {
-    //         *to = strdup(value);
-    //     }
-    // }
 }
 
 char * get_note(unsigned int id)
@@ -200,8 +167,6 @@ char * process_GET_request(char *URL, unsigned int *response_len)
     memset(selected_ids, UINT_MAX, sizeof(selected_ids));
 
     query_database(selected_ids, &ARRSIZE, id, to, from);
-
-    // unsigned int id = convert_char_to_uint(strid);
 
     printf("Parsed id: %u\n", id);
 
