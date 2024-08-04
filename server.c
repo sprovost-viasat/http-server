@@ -14,19 +14,6 @@
 #include "queryparams.h"
 
 
-
-// method and URL strings are passed by reference
-void process_request_line(char *request_line, char **method, char **URL)
-{
-    printf("processing request line: %s\n", request_line);
-    char del[1] = " ";
-    *method = strtok(request_line, del);     /*Tokenize the request line on the basis of space, and extract the first word*/
-    *URL = strtok(NULL, del);                /*Extract the URL*/
-    // printf("Method = %s\n", *method);
-    // printf("URL = %s\n", *URL);
-}
-
-
 typedef struct inote{
 
     char to[32];
@@ -41,19 +28,6 @@ inote_t notes[3] = {
     {"Eric", "Eric", "Lock in and finish this program by the end of day", 2},
 };
 
-
-
-char * get_note(unsigned int id)
-{
-    for(int i = 0; i < 3; i++){
-        printf("Searching note: %s\n", notes[i].note);
-        if(notes[i].id == id){
-            return notes[i].note;
-        }
-    }
-    
-    return "Cannot find note";
-}
 
 void query_database(unsigned int *ids, const size_t *num_ids, QueryParamNode_t **head)
 {
@@ -86,8 +60,6 @@ void query_database(unsigned int *ids, const size_t *num_ids, QueryParamNode_t *
 
     unsigned int ids_ind = 0;
 
-    printf("Iterating through num_ids (%ld)\n", *num_ids);
-
     for (unsigned int i = 0; i < *num_ids; i++)
     {
         bool use = true;
@@ -113,49 +85,12 @@ void query_database(unsigned int *ids, const size_t *num_ids, QueryParamNode_t *
     }
 }
 
-
-char * process_GET_request(char *URL, unsigned int *response_len)
+// Construct the thext response body
+// returns the length of the response data
+unsigned int construct_html_table(char** response, const size_t ARRSIZE, unsigned int *selected_ids)
 {
-
-    printf("%s(%u) called with URL = %s\n", __FUNCTION__, __LINE__, URL);
-    
-    char *strid = NULL, *to = NULL, *from = NULL;
-
-    unsigned int id = UINT_MAX;
-    // TEMP
-    id = 1;
-
-    // return a ;inked list of key, value pairs parsed from query string
-    QueryParamNode_t *head = parse_query_string(URL);
-
-    printf("Out of parse_query_string\n");
-
-    const size_t ARRSIZE = sizeof(notes) / sizeof(inote_t);
-    unsigned int selected_ids[ARRSIZE];
-
-    printf("Size of selected_ids: %lu\n", ARRSIZE);
-
-    // Initialize all elements to UINT_MAX
-    memset(selected_ids, UINT_MAX, sizeof(selected_ids));
-
-    printf("Set all selected_ids to UINT_MAX\n");
-
-    query_database(selected_ids, &ARRSIZE, &head);
-
-    for (unsigned int i = 0; i < ARRSIZE; i++)
-    {
-        printf("obtained id: %u\n", selected_ids[i]);
-    }
-
-    // printf("Parsed id: %u\n", id);
-
-    char* a_note = get_note(id);
-    
-    /*We have got the notes of interest here*/
-    char *response = calloc(1, 1024);
-
-
-    strcpy(response,
+    // Construct table
+    strcpy(*response,
         "<html>"
         "<head>"
             "<title>HTML Response</title>"
@@ -165,44 +100,95 @@ char * process_GET_request(char *URL, unsigned int *response_len)
              "</style>"
         "</head>"
         "<body>"
-        "<table>"
-        "<tr>"
-        "<td>");
+        "<table>");
 
-    strcat(response , 
-        a_note
-    );
+    strcat(*response, "<tr><td>To</td><td>From</td><td>Note</td></tr>");
 
-    strcat(response ,
-        "</td></tr>");
-    strcat(response , 
+    for (unsigned int i = 0; i < ARRSIZE; i++)
+    {
+        if (selected_ids[i] == UINT_MAX) break;
+        printf("obtained id: %u\n", selected_ids[i]);
+
+        strcat(*response, "<tr>");
+
+        strcat(*response, "<td>");
+        strcat(*response, notes[selected_ids[i]].to);
+        strcat(*response, "</td><td>");
+        strcat(*response, notes[selected_ids[i]].from);
+        strcat(*response, "</td><td>");
+        strcat(*response, notes[selected_ids[i]].note);
+        strcat(*response, "</td>");
+
+        strcat(*response, "</tr>");
+    }
+
+    strcat(*response , 
             "</table>"
             "</body>"
             "</html>");
 
-    unsigned int content_len_str = strlen(response);
+    return strlen(*response);
+}
+
+// Construct the text header + concatenate the response body
+// returns the length of the header and response data
+unsigned int construct_html_header(char** header, char** response)
+{
+    strcpy(*header, "HTTP/1.1 200 OK\n");      
+    strcat(*header, "Server: Roommate Notes HTTP Server\n");
+    strcat(*header, "Content-Length: "  ); 
+    strcat(*header, "Connection: close\n"   );
+    //strcat(header, itoa(content_len_str)); 
+    strcat(*header, "2048");
+    strcat(*header, "\n");
+    strcat(*header, "Content-Type: text/html; charset=UTF-8\n");
+    strcat(*header, "\n");
+
+    strcat(*header, *response);
+
+    return strlen(*header);
+}
+
+char * process_GET_request(char *URL, unsigned int *response_len)
+{    
+    char *strid = NULL, *to = NULL, *from = NULL;
+
+    // return a ;inked list of key, value pairs parsed from query string
+    QueryParamNode_t *head = parse_query_string(URL);
+
+    const size_t ARRSIZE = sizeof(notes) / sizeof(inote_t);
+    unsigned int selected_ids[ARRSIZE];
+
+    // Initialize all selected_ids to UINT_MAX (aka NULL)
+    memset(selected_ids, UINT_MAX, sizeof(selected_ids));
+
+    query_database(selected_ids, &ARRSIZE, &head);
+
+    // Free linked list nodes
+    QueryParamNode_t *cur = head;
+    while (cur)
+    {
+        cur = cur->next;
+        free(head);
+        head = cur;
+    }
+    
+    /*We have got the notes of interest here*/
+    char *response = calloc(1, 1024);
+
+    unsigned int content_len_str = construct_html_table(&response, ARRSIZE, selected_ids);
 
     /*create HTML hdr returned by server*/
     char *header  = calloc(1, 248 + content_len_str);
-    strcpy(header, "HTTP/1.1 200 OK\n");      
-    strcat(header, "Server: My Personal HTTP Server\n"    );
-    strcat(header, "Content-Length: "  ); 
-    strcat(header, "Connection: close\n"   );
-    //strcat(header, itoa(content_len_str)); 
-    strcat(header, "2048");
-    strcat(header, "\n");
-    strcat(header, "Content-Type: text/html; charset=UTF-8\n");
-    strcat(header, "\n");
+    content_len_str = construct_html_header(&header, &response);
 
-    strcat(header, response);
-    content_len_str = strlen(header); 
     *response_len = content_len_str;
     free(response);
+    
     return header;
 }
 
 char * process_POST_request(char *URL, unsigned int *response_len)
 {
-
     return NULL;
 }
