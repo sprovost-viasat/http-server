@@ -4,6 +4,11 @@
         "inet.h": "c",
         "in.h": "c",
         "socket.h": "c",
-        "interface.h": "c"
+        "interface.h": "c",
+        "server.h": "c",
+        "stdio.h": "c",
+        "limits.h": "c",
+        "queryparams.h": "c",
+        "type_traits": "c"
     }
 }
