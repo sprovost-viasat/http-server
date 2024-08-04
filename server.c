@@ -10,6 +10,8 @@
 #include "server.h"
 #include "interface.h"
 
+#include <limits.h>
+
 // method and URL strings are passed by reference
 void process_request_line(char *request_line, char **method, char **URL)
 {
@@ -52,20 +54,127 @@ void string_space_trim(char *string)
     memmove(string, ptr, len + 1);
 }
 
-typedef struct student_{
+typedef struct QueryParam {
+    char key[32];
+    char value[32];
+} QueryParam_t;
 
-    char name[32];
-    unsigned int roll_no;
-    char hobby[32];
-    char dept[32];
-} student_t; 
+typedef struct inote{
 
-student_t student[5] = {
-    {"Abhishek", 10305042, "Programming", "CSE"},
-    {"Nitin", 10305048, "Programming", "CSE"},
-    {"Avinash", 10305041, "Cricket", "ECE"},
-    {"Jack", 10305032, "Udemy Teaching", "Mechanical"},
-    {"Cris", 10305030, "Programming", "Electrical"}};
+    char to[32];
+    char from[32];
+    char note[256];
+    unsigned int id;
+} inote_t; 
+
+inote_t notes[3] = {
+    {"Chris", "Eric", "Hey thanks for letting me use your Pi zero!!", 0},
+    {"Tommy", "Eric", "I appreciate the golf lesson today (8/3/24)!", 1},
+    {"Eric", "Eric", "Lock in and finish this program by the end of day", 2},
+};
+
+
+unsigned int convert_char_to_uint(const char* str) {
+    char* endptr;
+    unsigned long value = strtoul(str, &endptr, 10); // Base 10 for decimal
+
+    // Check for conversion errors
+    if (*endptr != '\0') {
+        // Handle error: invalid character found
+        return 0; // Or handle the error differently
+    }
+
+    // Ensure the value fits in an unsigned int
+    if (value > UINT_MAX) {
+        // Handle overflow: value too large
+        return UINT_MAX; // Or handle the error differently
+    }
+
+    return (unsigned int)value;
+}
+
+// remove all chars up to and includeing the ?
+// if cannot find ? then remove nothing
+char* only_query_params(char *query_string)
+{
+    char *question_mark = strchr(query_string, '?');
+
+    if (question_mark) {
+        // Move the beginning of the string to the character after '?'
+        memmove(query_string, question_mark + 1, strlen(question_mark + 1) + 1);
+        printf("Removed all chars up to and including '?':  %s\n", query_string);
+    }
+    
+    return query_string;
+}
+
+void parse_query_string(const char *query_string, unsigned int *id, char **to, char **from) {
+    char *token, *key, *value;
+    
+
+    char* cquery_string = strdup(query_string);
+    cquery_string = only_query_params(cquery_string);
+
+    printf("Parsing: %s\n", cquery_string);
+    int pc=0;
+
+    char *tok;
+    char *otok;
+    for (tok=strtok(cquery_string,"&"); tok!=NULL; tok=strtok(tok,"&"))
+    {
+        pc++;
+        otok=tok+strlen(tok)+1;
+        key=strtok(tok,"=");
+        fprintf(stderr,"param%d: %s ",pc,key);
+        value=strtok(NULL,"=");
+        fprintf(stderr,"value%d: %s\n",pc,value);
+        tok=otok;
+
+        // Save param and the value accordingly
+        if (strcmp(key, "id") == 0)
+        {
+            *id = atoi(value);
+        }
+        else if (strcmp(key, "to") == 0) {
+            *to = strdup(value);
+        }
+        else if (strcmp(key, "from") == 0) {
+            *from = strdup(value);
+        }
+
+    };
+
+    // while ((token = strtok(NULL, delimeters)) != NULL) {
+    //     key = strtok(token, "=");
+    //     value = strtok(NULL, "=");
+
+    //     printf("parsed %s:%s\n", key, value);
+
+    //     if (strcmp(key, "id") == 0) {
+    //         printf("Captured string id val: %s\n", value);
+    //         *id = atoi(value);
+    //     } else if (strcmp(key, "to") == 0) {
+    //         *to = strdup(value);
+    //     }
+    // }
+}
+
+char * get_note(unsigned int id)
+{
+    for(int i = 0; i < 3; i++){
+        printf("Searching note: %s\n", notes[i].note);
+        if(notes[i].id == id){
+            return notes[i].note;
+        }
+    }
+    
+    return "Cannot find note";
+}
+
+void query_database(unsigned int *ids, const size_t *num_ids, const unsigned int id, const char* to, const char* from)
+{
+
+}
 
 
 char * process_GET_request(char *URL, unsigned int *response_len)
@@ -73,45 +182,30 @@ char * process_GET_request(char *URL, unsigned int *response_len)
 
     printf("%s(%u) called with URL = %s\n", __FUNCTION__, __LINE__, URL);
     
-    /*Let us extract the roll no of a students from URL using 
-     * string handling 
-     *URL : /College/IIT/?dept=CSE&rollno=10305042/
-     * */
-    char delimeter[2] = {'?', '\0'};
+    char *strid = NULL, *to = NULL, *from = NULL;
 
-    string_space_trim(URL);
-    char *token[5] = {0};
+    unsigned int id = UINT_MAX;
 
-    token[0] = strtok(URL, delimeter);
-    token[1] = strtok(0, delimeter);
-    /*token[1] = dept=CSE&rollno=10305042*/
-    delimeter[0] = '&';
+    // use an array of param structs insteead of hardcoding to, from, id??
+    parse_query_string(URL, &id, &to, &from);
 
-    token[2] = strtok(token[1], delimeter);
-    token[3] = strtok(0, delimeter);
-    /*token[2] = dept=CSE, token[3] = rollno=10305042*/
+    const size_t ARRSIZE = sizeof(notes);
+    unsigned int selected_ids[ARRSIZE];
 
-    printf("token[0] = %s, token[1] = %s, token[2] = %s, token[3] = %s\n",
-        token[0] , token[1], token[2], token[3]);
+    // Initialize all elements to UINT_MAX
+    memset(selected_ids, UINT_MAX, sizeof(selected_ids));
 
-    delimeter[0] = '=';
-    char *roll_no_str = strtok(token[3], delimeter);
-    char *roll_no_value = strtok(0, delimeter);
-    printf("roll_no_value = %s\n", roll_no_value);
-    unsigned int roll_no = atoi(roll_no_value), i = 0;
+    query_database(selected_ids, &ARRSIZE, id, to, from);
 
-    for(i = 0; i < 5; i++){
-        if(student[i].roll_no != roll_no){
-            continue;
-        }
-        break;
-    }
+    // unsigned int id = convert_char_to_uint(strid);
+
+    printf("Parsed id: %u\n", id);
+
+    char* a_note = get_note(id);
     
-    if(i == 5)
-        return NULL;
-    
-    /*We have got the students of interest here*/
+    /*We have got the notes of interest here*/
     char *response = calloc(1, 1024);
+
 
     strcpy(response,
         "<html>"
@@ -127,16 +221,16 @@ char * process_GET_request(char *URL, unsigned int *response_len)
         "<tr>"
         "<td>");
 
-        strcat(response , 
-            student[i].name
-        );
+    strcat(response , 
+        a_note
+    );
 
-        strcat(response ,
-            "</td></tr>");
-        strcat(response , 
-                "</table>"
-                "</body>"
-                "</html>");
+    strcat(response ,
+        "</td></tr>");
+    strcat(response , 
+            "</table>"
+            "</body>"
+            "</html>");
 
     unsigned int content_len_str = strlen(response);
 
