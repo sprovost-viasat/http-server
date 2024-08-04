@@ -7,10 +7,13 @@
 #include <netdb.h>
 #include <memory.h>
 #include <errno.h>
+#include <limits.h>
+#include <stdbool.h>
 #include "server.h"
 #include "interface.h"
+#include "queryparams.h"
 
-#include <limits.h>
+
 
 // method and URL strings are passed by reference
 void process_request_line(char *request_line, char **method, char **URL)
@@ -23,45 +26,6 @@ void process_request_line(char *request_line, char **method, char **URL)
     // printf("URL = %s\n", *URL);
 }
 
-/*string helping functions*/
-
-/*Remove the space from both sides of the string*/
-void string_space_trim(char *string)
-{
-
-    if(!string)
-        return;
-
-    char* ptr = string;
-    int len = strlen(ptr);
-
-    if(!len)
-    {
-        return;
-    }
-
-    if(!isspace(ptr[0]) && !isspace(ptr[len-1]))
-    {
-        return;
-    }
-
-    while(len-1 > 0 && isspace(ptr[len-1]))
-    {
-        ptr[--len] = 0;
-    }
-
-    while(*ptr && isspace(*ptr))
-    {
-        ++ptr, --len;
-    }
-
-    memmove(string, ptr, len + 1);
-}
-
-typedef struct QueryParam {
-    char key[32];
-    char value[32];
-} QueryParam_t;
 
 typedef struct inote{
 
@@ -78,57 +42,6 @@ inote_t notes[3] = {
 };
 
 
-// remove all chars up to and includeing the ?
-// if cannot find ? then remove nothing
-char* only_query_params(char *query_string)
-{
-    char *question_mark = strchr(query_string, '?');
-
-    if (question_mark) {
-        // Move the beginning of the string to the character after '?'
-        memmove(query_string, question_mark + 1, strlen(question_mark + 1) + 1);
-        printf("Removed all chars up to and including '?':  %s\n", query_string);
-    }
-    
-    return query_string;
-}
-
-void parse_query_string(const char *query_string, unsigned int *id, char **to, char **from) {
-    char *token, *key, *value;
-    
-
-    char* cquery_string = strdup(query_string);
-    cquery_string = only_query_params(cquery_string);
-
-    printf("Parsing: %s\n", cquery_string);
-    int pc=0;
-
-    char *tok;
-    char *otok;
-    for (tok=strtok(cquery_string,"&"); tok!=NULL; tok=strtok(tok,"&"))
-    {
-        pc++;
-        otok=tok+strlen(tok)+1;
-        key=strtok(tok,"=");
-        fprintf(stderr,"param%d: %s ",pc,key);
-        value=strtok(NULL,"=");
-        fprintf(stderr,"value%d: %s\n",pc,value);
-        tok=otok;
-
-        // Save param and the value accordingly
-        if (strcmp(key, "id") == 0)
-        {
-            *id = atoi(value);
-        }
-        else if (strcmp(key, "to") == 0) {
-            *to = strdup(value);
-        }
-        else if (strcmp(key, "from") == 0) {
-            *from = strdup(value);
-        }
-
-    };
-}
 
 char * get_note(unsigned int id)
 {
@@ -142,9 +55,62 @@ char * get_note(unsigned int id)
     return "Cannot find note";
 }
 
-void query_database(unsigned int *ids, const size_t *num_ids, const unsigned int id, const char* to, const char* from)
+void query_database(unsigned int *ids, const size_t *num_ids, QueryParamNode_t **head)
 {
+    //  Save param and the value accordingly
 
+    unsigned int id_key = UINT_MAX;
+    char *to_key = NULL;
+    char *from_key = NULL;
+    
+    // Populate datatypes from query params
+    QueryParamNode_t *curr = *head;
+    while (curr)
+    {
+        if (strcmp(curr->data.key, "id") == 0)
+        {
+            id_key = atoi(curr->data.value);
+        }
+        else if (strcmp(curr->data.key, "to") == 0)
+        {
+            to_key = strdup(curr->data.value);
+        }
+        else if (strcmp(curr->data.key, "from") == 0)
+        {
+            from_key = strdup(curr->data.value);
+        }
+
+        if (curr->next == NULL) break;
+        curr = curr->next;
+    }
+
+    unsigned int ids_ind = 0;
+
+    printf("Iterating through num_ids (%ld)\n", *num_ids);
+
+    for (unsigned int i = 0; i < *num_ids; i++)
+    {
+        bool use = true;
+        if (to_key)
+        {
+            use &= (strcmp(notes[i].to, to_key) == 0);
+        }
+        if (from_key)
+        {
+            use &= (strcmp(notes[i].from, from_key) == 0);
+        }
+        if (id_key != UINT_MAX)
+        {
+            use &= (notes[i].id == id_key);
+        }
+        
+        if (use)
+        {
+            printf("Adding note %u to list to share\n", notes[i].id);
+            ids[ids_ind] = notes[i].id;
+            ids_ind++;
+        }
+    }
 }
 
 
@@ -156,19 +122,32 @@ char * process_GET_request(char *URL, unsigned int *response_len)
     char *strid = NULL, *to = NULL, *from = NULL;
 
     unsigned int id = UINT_MAX;
+    // TEMP
+    id = 1;
 
-    // use an array of param structs insteead of hardcoding to, from, id??
-    parse_query_string(URL, &id, &to, &from);
+    // return a ;inked list of key, value pairs parsed from query string
+    QueryParamNode_t *head = parse_query_string(URL);
 
-    const size_t ARRSIZE = sizeof(notes);
+    printf("Out of parse_query_string\n");
+
+    const size_t ARRSIZE = sizeof(notes) / sizeof(inote_t);
     unsigned int selected_ids[ARRSIZE];
+
+    printf("Size of selected_ids: %lu\n", ARRSIZE);
 
     // Initialize all elements to UINT_MAX
     memset(selected_ids, UINT_MAX, sizeof(selected_ids));
 
-    query_database(selected_ids, &ARRSIZE, id, to, from);
+    printf("Set all selected_ids to UINT_MAX\n");
 
-    printf("Parsed id: %u\n", id);
+    query_database(selected_ids, &ARRSIZE, &head);
+
+    for (unsigned int i = 0; i < ARRSIZE; i++)
+    {
+        printf("obtained id: %u\n", selected_ids[i]);
+    }
+
+    // printf("Parsed id: %u\n", id);
 
     char* a_note = get_note(id);
     
