@@ -33,22 +33,18 @@ QueryParamNode_t * parse_query_string(const char *query_string)
     char *otok;
     for (tok=strtok(cquery_string,"&"); tok!=NULL; tok=strtok(tok,"&"))
     {
-        printf("init tok:%s\n", tok);
         pc++;
         otok=tok+strlen(tok)+1;
-        printf("init otok:%s\n", otok);
         key=strtok(tok,"=");
-        fprintf(stderr,"param%d: %s ",pc,key);
+        // fprintf(stderr,"param%d: %s ",pc,key);
         value=strtok(NULL,"=");
-        fprintf(stderr,"value%d: %s\n",pc,value);
+        // fprintf(stderr,"value%d: %s\n",pc,value);
         tok=otok;
 
         if (!value || !key) {
             printf("Error with a ghost param! {%s:%s}\n", key, value);
             continue;
         }
-
-        printf("end tok:%s\n", tok);
 
         QueryParamNode_t *node = (QueryParamNode_t *)malloc(sizeof(QueryParamNode_t));
         if (node == NULL)
@@ -74,20 +70,6 @@ QueryParamNode_t * parse_query_string(const char *query_string)
             tail->next = node;
             tail = node;
         }
-
-        // OLD METHOD
-        // Save param and the value accordingly
-        // if (strcmp(key, "id") == 0)
-        // {
-        //     *id = atoi(value);
-        // }
-        // else if (strcmp(key, "to") == 0) {
-        //     *to = strdup(value);
-        // }
-        // else if (strcmp(key, "from") == 0) {
-        //     *from = strdup(value);
-        // }
-
     };
     return head;
 }
