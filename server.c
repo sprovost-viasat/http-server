@@ -35,19 +35,23 @@ void string_space_trim(char *string)
     char* ptr = string;
     int len = strlen(ptr);
 
-    if(!len){
+    if(!len)
+    {
         return;
     }
 
-    if(!isspace(ptr[0]) && !isspace(ptr[len-1])){
+    if(!isspace(ptr[0]) && !isspace(ptr[len-1]))
+    {
         return;
     }
 
-    while(len-1 > 0 && isspace(ptr[len-1])){
+    while(len-1 > 0 && isspace(ptr[len-1]))
+    {
         ptr[--len] = 0;
     }
 
-    while(*ptr && isspace(*ptr)){
+    while(*ptr && isspace(*ptr))
+    {
         ++ptr, --len;
     }
 
