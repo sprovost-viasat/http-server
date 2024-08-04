@@ -17,8 +17,8 @@ typedef struct SocketAddress {
     struct sockaddr_in client;
 } SocketAddress;
 
-void init_monitor_fd_set(SocketAddress **monitored_fd_set, const int MAX_SUPPORTED_CLIENTS);
-void add_to_monitored_fd_set(SocketAddress **monitored_fd_set, const int MAX_SUPPORTED_CLIENTS, int fd, struct sockaddr_in client);
-void remove_from_monitored_fd_set(SocketAddress **monitored_fd_set, const int MAX_SUPPORTED_CLIENTS, int fd);
-void re_init_fds(SocketAddress **monitored_fd_set, const int MAX_SUPPORTED_CLIENTS, fd_set *fdset);
-int get_max_fd(SocketAddress **monitored_fd_set, const int MAX_SUPPORTED_CLIENTS);
+void init_monitor_fd_set(SocketAddress *monitored_fd_set, const int MAX_SUPPORTED_CLIENTS);
+void add_to_monitored_fd_set(SocketAddress *monitored_fd_set, const int MAX_SUPPORTED_CLIENTS, int fd, struct sockaddr_in client);
+void remove_from_monitored_fd_set(SocketAddress *monitored_fd_set, const int MAX_SUPPORTED_CLIENTS, int fd);
+void re_init_fds(SocketAddress *monitored_fd_set, const int MAX_SUPPORTED_CLIENTS, fd_set *fdset);
+int get_max_fd(SocketAddress *monitored_fd_set, const int MAX_SUPPORTED_CLIENTS);
