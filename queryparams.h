@@ -14,3 +14,6 @@ typedef struct QueryParamNode {
 
 char * get_note(unsigned int id);
 QueryParamNode_t * parse_query_string(const char *query_string);
+char * extract_buffer_body_data(char **buffer, size_t buffer_len);
+char * extract_data(char *buffer, size_t buffer_len, unsigned int content_length);
+

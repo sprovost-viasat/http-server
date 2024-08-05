@@ -73,3 +73,60 @@ QueryParamNode_t * parse_query_string(const char *query_string)
     };
     return head;
 }
+
+char * extract_data(char *buffer, size_t buffer_len, unsigned int content_length)
+{
+    // Ensure content_length is within the buffer bounds
+    if (content_length > buffer_len) {
+        // Handle error: content length is larger than buffer size
+        return NULL;
+    }
+
+    // Calculate the starting index of the data
+    char *data_start = buffer + (buffer_len - content_length);
+
+    // Create a new string to hold the extracted data
+    char *data = (char *)malloc(content_length + 1); // Allocate memory for the data and null terminator
+    if (data == NULL) {
+        // Handle memory allocation failure
+        return NULL;
+    }
+
+    // Copy the data to the new string
+    memcpy(data, data_start, content_length);
+    data[content_length] = '\0'; // Null-terminate the string
+
+    return data;
+}
+
+char * extract_buffer_body_data(char **buffer, size_t buffer_len)
+{
+    // unsigned int buffer_len = strlen(*buffer);
+    printf("BUFFER IN extract_buffer_body_data: %s\n",*buffer);
+    
+    char *content_length_str = strstr(*buffer, "Content-Length: ");
+    if (content_length_str == NULL) {
+        // Handle error: Content-Length header not found
+        printf("Parsing error: Content-Length header not found\n");
+        return NULL;
+    }
+
+    content_length_str += 16; // Skip "Content-Length: "
+    char *end = strchr(content_length_str, '\n');
+    if (end == NULL) {
+        // Handle error: Invalid Content-Length header
+        printf("Parsing error: Cannot find EOL for Content-Length header\n");
+        return NULL;
+    }
+    printf("Content-Length EOL found!\n");
+    *end = '\0'; // add null-terminating to parse out int of content length
+
+    unsigned int content_length = atoi(content_length_str);
+
+    if (content_length == 0) return NULL;
+
+    printf("content_length=%u\n", content_length);
+
+    return extract_data(*buffer, buffer_len, content_length);
+}
+
