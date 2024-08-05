@@ -26,11 +26,11 @@ SocketAddress monitored_fd_set[MAX_SUPPORTED_CLIENTS];
 int setup_tcp_socket_connection(struct sockaddr_in *server_addr)
 {
 
-    /*Master socket file descriptor, used to accept new client connection only, no data exchange*/
+    /* Master socket file descriptor, used to accept new client connection only, no data exchange */
     int master_socket_fd = 0;
     int opt = 1;
 
-    /*step 2: tcp master socket creation*/
+    /* tcp master socket creation */
     if ((master_socket_fd = socket(
         AF_INET,
         SOCK_STREAM,
@@ -41,7 +41,7 @@ int setup_tcp_socket_connection(struct sockaddr_in *server_addr)
         exit(1);
     }
     
-    //set master socket to allow multiple connections
+    // set master socket to allow multiple connections
     if (setsockopt(
         master_socket_fd,
         SOL_SOCKET,
@@ -58,12 +58,6 @@ int setup_tcp_socket_connection(struct sockaddr_in *server_addr)
     server_addr->sin_port = htons(SERVER_PORT); //Server will process any data arriving on port SERVER_PORT
     server_addr->sin_addr.s_addr = INADDR_ANY; 
 
-    /* Bind the server. Binding means, we are telling kernel(OS) that any data 
-     * you recieve with dest ip address = 192.168.56.101, and tcp port no = 2000, pls send that data to this process
-     * bind() is a mechnism to tell OS what kind of data server process is interested in to recieve. Remember, server machine
-     * can run multiple server processes to process different data and service different clients. Note that, bind() is 
-     * used on server side, not on client side*/
-
     if (bind(
         master_socket_fd,
         (struct sockaddr *)server_addr,
@@ -74,8 +68,7 @@ int setup_tcp_socket_connection(struct sockaddr_in *server_addr)
         return -1;
     }
 
-    /*Step 4 : Tell the Linux OS to maintain the queue of max length to Queue incoming
-     * client connections.*/
+    // Tell the Linux OS to maintain the queue of max length to Queue incoming client connections 
     if (listen(master_socket_fd, 5) < 0)  
     {
         printf("listen failed\n");
@@ -194,15 +187,6 @@ void service_client(const int master_socket_fd)
                         0
                     );
 
-                    // sent_recv_bytes = recvfrom(
-                    //     comm_socket_fd,
-                    //     (char *)DATA_BUFFER,
-                    //     sizeof(DATA_BUFFER),
-                    //     0,
-                    //     (struct sockaddr *)&client_addr,
-                    //     &addr_len
-                    // );
-
                     /* state Machine state 4*/
                     printf("Server received %d bytes from client %s:%u\n",
                         sent_recv_bytes,
@@ -225,12 +209,6 @@ void service_client(const int master_socket_fd)
                         break;
                     }
 
-                    //handle_rsvd_message();
-
-                    /****************************************************************/
-                    /*  BEGIN : Implement the HTTP request processing functionality */
-                    /****************************************************************/
-
                     printf("Msg recieved:\n%s\n", DATA_BUFFER);
                     char *request_line = NULL;
                     char *method = NULL;
@@ -238,7 +216,9 @@ void service_client(const int master_socket_fd)
 
                     char del[2] = "\n";
 
-                    request_line = strtok(DATA_BUFFER, del);
+                    char *buffer_copy = strdup(DATA_BUFFER);
+
+                    request_line = strtok(buffer_copy, del);
 
                     process_request_line(request_line, &method, &URL);
 
@@ -251,7 +231,7 @@ void service_client(const int master_socket_fd)
                         response = process_GET_request(URL, &response_length);
                     }
                     else if(strncmp(method, "POST", strlen("POST")) == 0){
-                        response = process_POST_request(URL, &response_length);
+                        response = process_POST_request(DATA_BUFFER, &response_length);
                     }
                     else{
                         printf("Unsupported URL method request\n");
@@ -259,15 +239,13 @@ void service_client(const int master_socket_fd)
                         break;
                     }
 
-                    /****************************************************************/
-                    /*END : Implement the HTTP request processing functionality */
-                    /****************************************************************/
+                    free(buffer_copy);
 
 
                     /* Server replying back to client now*/
                     if(response)
                     {
-                        printf("response to be sent to client = \n%s", response);
+                        // printf("response to be sent to client = \n%s", response);
                         sent_recv_bytes = sendto(
                             comm_socket_fd,
                             response,
