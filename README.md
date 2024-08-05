@@ -3,6 +3,19 @@
 ## Example GET Request
 
 ![Example of Raspberry Pi running the HTTP multiplexing server and making a GET request](assets/webserver_get.gif)
+- When the server is running, the browser can be used to query the list of notes in the database
+- The notes can also be filtered with query params in the URL such as `to`, `from` and `id`
+
+## Example POST Request
+
+![Example of Raspberry Pi running the HTTP multiplexing server and making a POST request](assets/webserver_post.gif)
+- The database of notes can be added to by POSTing the data
+    - The data requires the `to`, `from`, and `note` strings
+- The data **cannot** be passed in the POST as query parameters
+- Example CURL POST request:
+```bash
+curl -X POST http://192.168.1.225:2000/ -d "to=Ryan" -d "from=Eric" -d "note=Go to Costco to join the membership"
+```
 
 
 ## Setup Raspberry Pi To Be HTTP-Server
@@ -40,5 +53,3 @@ lo - 127.0.0.1:2000
 wlan0 - 192.168.1.225:2000
 Server ready to service client msgs.
 ```
-
-https://jmp.sh/Wqce2nsi
