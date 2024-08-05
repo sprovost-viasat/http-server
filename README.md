@@ -1,5 +1,11 @@
 # http-server
 
+#### A multiplexing http webserver capable of running on a Raspberry Pi. Built in C.
+
+The webserver stores "notes" that are displayed in a basic HTML table.
+
+Notes can be retrieved through GET or added with POST
+
 ## Example GET Request
 
 ![Example of Raspberry Pi running the HTTP multiplexing server and making a GET request](assets/webserver_get.gif)
@@ -17,6 +23,16 @@
 curl -X POST http://192.168.1.225:2000/ -d "to=Ryan" -d "from=Eric" -d "note=Go to Costco to join the membership"
 ```
 
+## Notes
+```c
+typedef struct inote{
+    char to[32];
+    char from[32];
+    char note[256];
+    unsigned int id;
+} inote_t; 
+```
+- The notes are basic structs containig the elements as shown above
 
 ## Setup Raspberry Pi To Be HTTP-Server
 
