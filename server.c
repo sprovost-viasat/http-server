@@ -146,9 +146,16 @@ unsigned int construct_html_header(char** header, char** response)
 {
     strcpy(*header, "HTTP/1.1 200 OK\n");      
     strcat(*header, "Server: Roommate Notes HTTP Server\n");
-    strcat(*header, "Content-Length: "  ); 
+
+    // calculate and append content length of response
+    unsigned int content_length = strlen(*response);
+    char content_length_str[16];
+    sprintf(content_length_str, "%u\n", content_length);
+    strcat(*header, "Content-Length: "  );
+    strcat(*header, content_length_str);
+
     strcat(*header, "Connection: close\n"   );
-    //strcat(header, itoa(content_len_str)); 
+    // strcat(header, itoa(content_len_str)); 
     strcat(*header, "2048");
     strcat(*header, "\n");
     strcat(*header, "Content-Type: text/html; charset=UTF-8\n");
@@ -200,5 +207,12 @@ char * process_GET_request(char *URL, unsigned int *response_len)
 
 char * process_POST_request(char *URL, unsigned int *response_len)
 {
-    return NULL;
+    
+    char *response = calloc(1, 248);
+    strcpy(response, "POST request received\n");
+    char *header  = calloc(1, 248);
+    unsigned int content_len_str = construct_html_header(&header, &response);
+    *response_len = strlen(header);
+    free(response);
+    return header;
 }
