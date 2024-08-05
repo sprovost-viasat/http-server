@@ -11,22 +11,29 @@
 #include <stdbool.h>
 #include "server.h"
 #include "interface.h"
-#include "queryparams.h"
+
+#define DATABASESIZE 20
 
 
-typedef struct inote{
-
-    char to[32];
-    char from[32];
-    char note[256];
-    unsigned int id;
-} inote_t; 
-
-inote_t notes[3] = {
+unsigned int NOTES_SIZE = 3;
+inote_t notes[DATABASESIZE] = {
     {"Chris", "Eric", "Hey thanks for letting me use your Pi zero!!", 0},
     {"Tommy", "Eric", "I appreciate the golf lesson today (8/3/24)!", 1},
     {"Eric", "Eric", "Lock in and finish this program by the end of day", 2},
 };
+
+void print_notes()
+{
+    for (int i = 0; i < NOTES_SIZE; i++)
+    {
+        printf("%u. to: %s, from: %s; %s\n",
+            notes[i].id,
+            notes[i].to,
+            notes[i].from,
+            notes[i].note
+        );
+    }
+}
 
 // method and URL strings are passed by reference
 void process_request_line(char *request_line, char **method, char **URL)
@@ -39,7 +46,7 @@ void process_request_line(char *request_line, char **method, char **URL)
     // printf("URL = %s\n", *URL);
 }
 
-void query_database(unsigned int *ids, const size_t *num_ids, QueryParamNode_t **head)
+void query_database(unsigned int *ids, const unsigned int *num_ids, QueryParamNode_t **head)
 {
     //  Save param and the value accordingly
 
@@ -88,11 +95,68 @@ void query_database(unsigned int *ids, const size_t *num_ids, QueryParamNode_t *
         
         if (use)
         {
-            printf("Adding note %u to list to share\n", notes[i].id);
+            // printf("Adding note %u to list to share\n", notes[i].id);
             ids[ids_ind] = notes[i].id;
             ids_ind++;
         }
     }
+}
+
+// note id == UINT_MAX if failed to create
+inote_t create_note(QueryParamNode_t **head)
+{
+    //  Save param and the value accordingly
+
+    unsigned int id_key = UINT_MAX;
+    char *to_key = NULL;
+    char *from_key = NULL;
+    char *note_key = NULL;
+
+    unsigned int count = 0;
+    
+    // Populate datatypes from query params
+    QueryParamNode_t *curr = *head;
+    while (curr)
+    {
+        if (strcmp(curr->data.key, "note") == 0)
+        {
+            note_key = strdup(curr->data.value);
+            count++;
+        }
+        else if (strcmp(curr->data.key, "to") == 0)
+        {
+            to_key = strdup(curr->data.value);
+            count++;
+        }
+        else if (strcmp(curr->data.key, "from") == 0)
+        {
+            from_key = strdup(curr->data.value);
+            count++;
+        }
+
+        if (curr->next == NULL) break;
+        curr = curr->next;
+    }
+
+    if (count < 3)
+    {
+        printf("Error adding item to database. Missing a required value.\n");
+        inote_t ret = {
+            .from = "",
+            .to = "",
+            .note = "",
+            .id = UINT_MAX
+        };
+        return ret;
+    }
+
+    inote_t ret = {
+        .id = NOTES_SIZE
+    };
+    strcpy(ret.from, from_key);
+    strcpy(ret.to, to_key);
+    strcpy(ret.note, note_key);
+    return ret;
 }
 
 // Construct the thext response body
@@ -117,8 +181,6 @@ unsigned int construct_html_table(char** response, const size_t ARRSIZE, unsigne
     for (unsigned int i = 0; i < ARRSIZE; i++)
     {
         if (selected_ids[i] == UINT_MAX) break;
-        printf("obtained id: %u\n", selected_ids[i]);
-
         strcat(*response, "<tr>");
 
         strcat(*response, "<td>");
@@ -151,10 +213,10 @@ unsigned int construct_html_header(char** header, char** response)
     unsigned int content_length = strlen(*response);
     char content_length_str[16];
     sprintf(content_length_str, "%u\n", content_length);
-    strcat(*header, "Content-Length: "  );
+    strcat(*header, "Content-Length: ");
     strcat(*header, content_length_str);
 
-    strcat(*header, "Connection: close\n"   );
+    strcat(*header, "Connection: close\n");
     // strcat(header, itoa(content_len_str)); 
     strcat(*header, "2048");
     strcat(*header, "\n");
@@ -170,16 +232,15 @@ char * process_GET_request(char *URL, unsigned int *response_len)
 {    
     char *strid = NULL, *to = NULL, *from = NULL;
 
-    // return a ;inked list of key, value pairs parsed from query string
+    // return a linked list of key, value pairs parsed from query string
     QueryParamNode_t *head = parse_query_string(URL);
 
-    const size_t ARRSIZE = sizeof(notes) / sizeof(inote_t);
-    unsigned int selected_ids[ARRSIZE];
+    unsigned int selected_ids[NOTES_SIZE];
 
     // Initialize all selected_ids to UINT_MAX (aka NULL)
     memset(selected_ids, UINT_MAX, sizeof(selected_ids));
 
-    query_database(selected_ids, &ARRSIZE, &head);
+    query_database(selected_ids, &NOTES_SIZE, &head);
 
     // Free linked list nodes
     QueryParamNode_t *cur = head;
@@ -193,7 +254,7 @@ char * process_GET_request(char *URL, unsigned int *response_len)
     /*We have got the notes of interest here*/
     char *response = calloc(1, 1024);
 
-    unsigned int content_len_str = construct_html_table(&response, ARRSIZE, selected_ids);
+    unsigned int content_len_str = construct_html_table(&response, NOTES_SIZE, selected_ids);
 
     /*create HTML hdr returned by server*/
     char *header  = calloc(1, 248 + content_len_str);
@@ -205,11 +266,53 @@ char * process_GET_request(char *URL, unsigned int *response_len)
     return header;
 }
 
-char * process_POST_request(char *URL, unsigned int *response_len)
+
+
+char * process_POST_request(char *buffer, unsigned int *response_len)
 {
-    
+    char* data = extract_buffer_body_data(&buffer, strlen(buffer));
+
+    if (!data)
+    {
+        return "Failed to parse data in POST body.\n";
+    }
+
+    // return a linked list of key, value pairs parsed from query string
+    QueryParamNode_t *head = parse_query_string(data);
+
+    free(data);
+
+    const size_t ARRSIZE = sizeof(notes) / sizeof(inote_t);
+    unsigned int selected_ids[ARRSIZE];
+
+    // Initialize all selected_ids to UINT_MAX (aka NULL)
+    memset(selected_ids, UINT_MAX, sizeof(selected_ids));
+
+    inote_t new_note = create_note(&head);
+
+    if (new_note.id == UINT_MAX)
+    {
+       return "Failed to create new note.\n"; 
+    }
+
+    notes[NOTES_SIZE] = new_note;
+    NOTES_SIZE++;
+
+    // Free linked list nodes
+    QueryParamNode_t *cur = head;
+    while (cur)
+    {
+        cur = cur->next;
+        free(head);
+        head = cur;
+    }
+
     char *response = calloc(1, 248);
-    strcpy(response, "POST request received\n");
+    strcpy(response, "Added note to database with id ");
+    char id_str[4];
+    sprintf(id_str, "%u", new_note.id);
+    strcat(response, id_str);
+    strcat(response, ".\n");
     char *header  = calloc(1, 248);
     unsigned int content_len_str = construct_html_header(&header, &response);
     *response_len = strlen(header);
