@@ -30,7 +30,7 @@ curl -X POST http://192.168.1.225:2000/ -d "to=Ryan" -d "from=Eric" -d "note=Go 
 
 ## Notes
 ```c
-typedef struct inote{
+typedef struct inote {
     char to[32];
     char from[32];
     char note[256];
