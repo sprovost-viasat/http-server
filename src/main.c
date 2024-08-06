@@ -214,7 +214,7 @@ void service_client(const int master_socket_fd)
                     char *method = NULL;
                     char *URL = NULL;
 
-                    char del[2] = "\n";
+                    char del[] = "\n";
 
                     char *buffer_copy = strdup(DATA_BUFFER);
 

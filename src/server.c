@@ -39,11 +39,9 @@ void print_notes()
 void process_request_line(char *request_line, char **method, char **URL)
 {
     printf("processing request line: %s\n", request_line);
-    char del[1] = " ";
+    char del[] = " ";
     *method = strtok(request_line, del);     /*Tokenize the request line on the basis of space, and extract the first word*/
     *URL = strtok(NULL, del);                /*Extract the URL*/
-    // printf("Method = %s\n", *method);
-    // printf("URL = %s\n", *URL);
 }
 
 void query_database(unsigned int *ids, const unsigned int *num_ids, QueryParamNode_t **head)
