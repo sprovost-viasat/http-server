@@ -23,6 +23,11 @@ Notes can be retrieved through GET or added with POST
 curl -X POST http://192.168.1.225:2000/ -d "to=Ryan" -d "from=Eric" -d "note=Go to Costco to join the membership"
 ```
 
+## Example Hosting Multiple Clients
+![Example of Raspberry Pi running the HTTP multiplexing server serving multiple clients at once](assets/multiplexing.gif)
+- The HTTP webserver is capable of serving multiple clients at once
+- The database results can be filtered with query params!
+
 ## Notes
 ```c
 typedef struct inote{
