@@ -7,6 +7,7 @@
 #include <netdb.h>
 #include <memory.h>
 #include <errno.h>
+#include <unistd.h>
 
 #include "server.h"
 #include "interface.h"
