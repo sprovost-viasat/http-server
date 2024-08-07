@@ -10,6 +10,7 @@
         "limits.h": "c",
         "queryparams.h": "c",
         "type_traits": "c",
-        "stdlib.h": "c"
+        "stdlib.h": "c",
+        "select.h": "c"
     }
 }
