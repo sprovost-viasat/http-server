@@ -22,6 +22,8 @@ inote_t notes[DATABASESIZE] = {
     {"Eric", "Eric", "Lock in and finish this program by the end of day", 2},
 };
 
+/* unused, but could be useful for debugging */
+#if 0
 void print_notes()
 {
     for (int i = 0; i < NOTES_SIZE; i++)
@@ -34,12 +36,14 @@ void print_notes()
         );
     }
 }
+#endif 
 
 // method and URL strings are passed by reference
 void process_request_line(char *request_line, char **method, char **URL)
 {
     printf("processing request line: %s\n", request_line);
-    char del[] = " ";
+    const char del[] = " ";
+    /* FIXME: strok is not thread safe, but that's ok here */
     *method = strtok(request_line, del);     /*Tokenize the request line on the basis of space, and extract the first word*/
     *URL = strtok(NULL, del);                /*Extract the URL*/
 }
@@ -49,8 +53,8 @@ void query_database(unsigned int *ids, const unsigned int *num_ids, QueryParamNo
     //  Save param and the value accordingly
 
     unsigned int id_key = UINT_MAX;
-    char *to_key = NULL;
-    char *from_key = NULL;
+    const char *to_key = NULL;
+    const char *from_key = NULL;
     
     // Populate datatypes from query params
     QueryParamNode_t *curr = *head;
@@ -104,11 +108,9 @@ void query_database(unsigned int *ids, const unsigned int *num_ids, QueryParamNo
 inote_t create_note(QueryParamNode_t **head)
 {
     //  Save param and the value accordingly
-
-    unsigned int id_key = UINT_MAX;
-    char *to_key = NULL;
-    char *from_key = NULL;
-    char *note_key = NULL;
+    const char *to_key = NULL;
+    const char *from_key = NULL;
+    const char *note_key = NULL;
 
     unsigned int count = 0;
     
@@ -159,7 +161,7 @@ inote_t create_note(QueryParamNode_t **head)
 
 // Construct the thext response body
 // returns the length of the response data
-unsigned int construct_html_table(char** response, const size_t ARRSIZE, unsigned int *selected_ids)
+unsigned int construct_html_table(char** response, const size_t ARRSIZE, const unsigned int *selected_ids)
 {
     // Construct table
     strcpy(*response,
@@ -226,17 +228,15 @@ unsigned int construct_html_header(char** header, char** response)
     return strlen(*header);
 }
 
-char * process_GET_request(char *URL, unsigned int *response_len)
+char * process_GET_request(const char *URL, unsigned int *response_len)
 {    
-    char *strid = NULL, *to = NULL, *from = NULL;
-
     // return a linked list of key, value pairs parsed from query string
     QueryParamNode_t *head = parse_query_string(URL);
 
     unsigned int selected_ids[NOTES_SIZE];
 
-    // Initialize all selected_ids to UINT_MAX (aka NULL)
-    memset(selected_ids, UINT_MAX, sizeof(selected_ids));
+    // Initialize all selected_ids to NUL
+    memset(selected_ids, 0, sizeof(selected_ids));
 
     query_database(selected_ids, &NOTES_SIZE, &head);
 
@@ -283,8 +283,8 @@ char * process_POST_request(char *buffer, unsigned int *response_len)
     const size_t ARRSIZE = sizeof(notes) / sizeof(inote_t);
     unsigned int selected_ids[ARRSIZE];
 
-    // Initialize all selected_ids to UINT_MAX (aka NULL)
-    memset(selected_ids, UINT_MAX, sizeof(selected_ids));
+    // Initialize all selected_ids to NUL
+    memset(selected_ids, 0, sizeof(selected_ids));
 
     inote_t new_note = create_note(&head);
 
@@ -304,16 +304,17 @@ char * process_POST_request(char *buffer, unsigned int *response_len)
         free(head);
         head = cur;
     }
+    static const int max_resp_size = 248;
 
-    char *response = calloc(1, 248);
-    strcpy(response, "Added note to database with id ");
-    char id_str[4];
-    sprintf(id_str, "%u", new_note.id);
-    strcat(response, id_str);
-    strcat(response, ".\n");
-    char *header  = calloc(1, 248);
-    unsigned int content_len_str = construct_html_header(&header, &response);
-    *response_len = strlen(header);
+    char *response = calloc(1, max_resp_size);
+
+    /* FIXME: check returned value, as if it's equal to max_resp_size, the answer was probably clipped */
+    /* Instead, let's nul-terminate response in case the note is larger than max_resp_size chars */
+    snprintf(response, max_resp_size, "Added note to database with id %04u.\n", new_note.id);
+    response[max_resp_size-1] = '\0';
+
+    char *header  = calloc(1, max_resp_size);
+    *response_len = construct_html_header(&header, &response);
     free(response);
     return header;
 }

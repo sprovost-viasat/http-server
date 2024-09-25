@@ -6,7 +6,12 @@ SRCDIR = src
 
 # Find all .c files in the src directory
 SRCS = $(wildcard $(SRCDIR)/*.c)
+OBJECT = server
+.PHONY: clean
 
 # Build the executable
-server: $(SRCS)
-	gcc -g $(SRCS) -o server
+$(OBJECT): $(SRCS)
+	@gcc -g $(SRCS) -o $(OBJECT)
+
+clean:
+	@rm -f $(OBJECT)
