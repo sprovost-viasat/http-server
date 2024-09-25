@@ -91,7 +91,7 @@ void service_client(const int master_socket_fd)
     
 
     int sent_recv_bytes = 0;
-    int addr_len = sizeof(struct sockaddr);
+    socklen_t addr_len = sizeof(struct sockaddr);
 
     fd_set readfds;
 
@@ -215,9 +215,14 @@ void service_client(const int master_socket_fd)
                     char *method = NULL;
                     char *URL = NULL;
 
-                    char del[] = "\n";
+                    const char del[] = "\n";
 
                     char *buffer_copy = strdup(DATA_BUFFER);
+                    if( !buffer_copy ){
+                        printf("Cannot duplicate buffer?\n");
+                        close(comm_socket_fd);
+                        break;
+                    }
 
                     request_line = strtok(buffer_copy, del);
 

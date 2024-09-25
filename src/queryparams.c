@@ -41,7 +41,7 @@ QueryParamNode_t * parse_query_string(const char *query_string)
         tok=otok;
 
         if (!value || !key) {
-            printf("Error with a ghost param! {%s:%s}\n", key, value);
+            printf("Error with a ghost param! {%s:%s}\n", key? key : "null", value? value : "null");
             continue;
         }
 
